@@ -1,0 +1,292 @@
+<html>
+    <head>
+        <title>Flowchart Maker</title>
+        <style>
+            body {
+                color: white;
+                background-color: black;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+            #myCanvas {
+                width: 20000px;
+                height: 20000px;
+            }
+            .nodes {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: absolute;
+                text-align: center;
+                transition: border-radius 0.05s, skew 0.05s;
+            }
+
+            .ellipse {
+                border-radius: 40px; 
+            }
+
+            .parallelogram {
+                transform: skew(-20deg);
+            }
+
+            .nodes:focus {
+                background-color: #303030;
+                outline: none;
+            }
+        </style>
+        <script>
+
+            var nodes = [];
+            var index = 0;
+
+            var selectedNode = 0;
+
+            document.onkeydown = function(event) {
+                //console.log(event);
+                if(event.key != "Control" && event.ctrlKey == true) {
+                    switch(event.key) {
+                        case "ArrowUp": 
+                            event.preventDefault();
+                            move(DIRECTIONS.UP);
+                            break;
+                        case "ArrowDown": 
+                            event.preventDefault();
+                            move(DIRECTIONS.DOWN);
+                            break;
+                        case "ArrowRight": 
+                            event.preventDefault();
+                            move(DIRECTIONS.RIGHT);
+                            break;
+                        case "ArrowLeft": 
+                            event.preventDefault();
+                            move(DIRECTIONS.LEFT);
+                            break;
+                        case "z":
+                            event.preventDefault();
+                            nodes[selectedNode].delete();
+                            break;    
+                    }
+                }
+                if(event.key == "`") {
+                    event.preventDefault();
+                    cycleShape(nodes[selectedNode]);
+                }
+                //moveToNode(nodes[selectedNode]);
+            }
+
+            const NODE_WIDTH = 200; // px
+            const NODE_HEIGHT = 80; // px **Be sure to change border-radius of ellipse to 1/2 of NODE_HEIGHT!
+
+            const NODE_SEPARATION = 50; // px
+
+            const BORDER_WIDTH = 1; // px
+            const CONNECTION_WIDTH = 1 // px
+
+            const DIRECTIONS = Object.freeze({"UP": 0, "DOWN": 1, "LEFT": 2, "RIGHT": 3});
+            const SHAPES = Object.freeze({"RECTANGLE": 0, "ELLIPSE": 1, "PARALLELOGRAM": 2, "DIAMOND": 3});
+
+            const shapeClasses = ["rectangle","ellipse","parallelogram","diamond"];
+            
+            class Position {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                }
+            }
+
+            class Node {
+
+                constructor(position, text, shape, parentNode, returnDirection) {
+                    this.position = position;
+                    this.text = text;
+                    this.childNodes = [];
+                    this.shape = shape;
+                    this.parentNode = parentNode;
+                    this.id = index++;
+                    this.div = drawNode(this);
+                    nodes.push(this);
+                    moveToNode(this);
+
+                    if(parentNode) this.returnDirection = returnDirection;
+                    else this.returnDirection = -1;
+                }
+
+                addChildNode(text, shape, direction) {
+
+                    var position = new Position();
+
+                    if(direction == DIRECTIONS.UP || direction == DIRECTIONS.DOWN) {
+
+                        position.x = this.position.x;
+
+                        if(direction == DIRECTIONS.DOWN) position.y = this.position.y + NODE_HEIGHT + NODE_SEPARATION + (2 * BORDER_WIDTH);
+                        else position.y = this.position.y - (NODE_HEIGHT + NODE_SEPARATION + (2 * BORDER_WIDTH));
+
+                    } else { 
+
+                        position.y = this.position.y; 
+
+                        if(direction == DIRECTIONS.RIGHT) position.x = this.position.x + NODE_WIDTH + NODE_SEPARATION + (2 * BORDER_WIDTH);
+                        else position.x = this.position.x - (NODE_WIDTH + NODE_SEPARATION + (2 * BORDER_WIDTH));
+
+                    }
+
+                    var newNode = new Node(position, text, shape, this, reverseDirection(direction))
+
+                    this.childNodes.push({
+                        node: newNode, 
+                        direction: direction
+                    });
+
+                    newNode.connector = connectNodes(this);
+
+                    return newNode;
+                }
+            
+                getChildNode(direction) {
+                    for(var i = 0; i < this.childNodes.length; i++) {
+                        if (this.childNodes[i].direction == direction) return this.childNodes[i].node;
+                    }
+                    return -1;
+                }
+
+                delete() {
+                    if (this.parentNode == null || this.childNodes.length != 0) return;
+                    for (var i = 0; i < this.parentNode.childNodes.length; i++) {
+                        if(this.parentNode.childNodes[i].node == this) {
+                            this.parentNode.childNodes.splice(i, 1);
+                        }
+                    }
+                    var nodeIndex = nodes.indexOf(this);
+                    nodes.splice(nodeIndex, 1);
+                    for (var i = nodeIndex; i < nodes.length; i++) {
+                        nodes[i].id--;
+                    }
+                    index--;
+                    document.getElementById("myCanvas").removeChild(this.div);
+                    document.getElementById("myCanvas").removeChild(this.connector);
+                    selectedNode = this.parentNode.id;
+                    moveToNode(this.parentNode);
+                }
+            }
+
+            function cycleShape(node) {
+                node.div.classList.remove(shapeClasses[node.shape]);
+                node.shape++;
+                if (node.shape == Object.getOwnPropertyNames(SHAPES).length) node.shape = 0;
+                node.div.classList.add(shapeClasses[node.shape]);
+            }
+
+            function drawNode(node) {
+                var canvas = document.getElementById("myCanvas");
+                var div = document.createElement("div");
+                div.contentEditable = true;
+                div.classList.add("nodes");
+                div.classList.add(shapeClasses[node.shape]);
+                div.innerText = node.text;
+                div.style.width = NODE_WIDTH;
+                div.style.height = NODE_HEIGHT;
+                div.style.top = node.position.y - (NODE_HEIGHT / 2) - (BORDER_WIDTH) + "px";
+                div.style.left = node.position.x - (NODE_WIDTH / 2) - (BORDER_WIDTH) + "px";
+                div.style.border = BORDER_WIDTH  + "px solid white";
+                canvas.appendChild(div);
+
+                div.setAttribute("onfocus","checkSelection(" + node.id + ");");
+
+                return div;
+            }
+
+            function checkSelection(nodeIndex) {
+                if(selectedNode != nodeIndex) {
+                    selectedNode = nodeIndex;
+                    moveToNode(nodes[nodeIndex]);
+                }
+            }
+
+            function moveToNode(node) {
+                var nodeCenter = node.position;
+                var top = nodeCenter.y - window.innerHeight / 2;
+                var left = nodeCenter.x - window.innerWidth / 2;
+                node.div.focus();
+                document.execCommand('selectAll', false, null);
+                window.scrollTo({ top: top, left: left, behavior: 'smooth' });
+            }
+
+            function connectNodes(parentNode) {
+                var childPosition = parentNode.childNodes.length - 1;
+                var direction = parentNode.childNodes[childPosition].direction;
+                var childNode = parentNode.childNodes[childPosition].node;
+
+                var position = new Position();
+                var width, height;
+                
+                if(direction == DIRECTIONS.UP || direction == DIRECTIONS.DOWN) {
+
+                    position.x = parentNode.position.x - (CONNECTION_WIDTH / 2);
+                    width = CONNECTION_WIDTH;
+                    height = NODE_SEPARATION;
+
+                    if(direction == DIRECTIONS.DOWN) position.y = parentNode.position.y + (NODE_HEIGHT / 2) + BORDER_WIDTH;
+                    else position.y = parentNode.position.y - ((NODE_HEIGHT / 2) + NODE_SEPARATION + BORDER_WIDTH);
+
+                } else { 
+
+                    position.y = parentNode.position.y - (CONNECTION_WIDTH / 2);  
+                    height = CONNECTION_WIDTH;
+                    width = NODE_SEPARATION;
+
+                    if(direction == DIRECTIONS.RIGHT) position.x = parentNode.position.x + (NODE_WIDTH / 2) + BORDER_WIDTH;
+                    else position.x = parentNode.position.x - ((NODE_WIDTH / 2) + NODE_SEPARATION + BORDER_WIDTH);
+
+                }
+                
+                var canvas = document.getElementById("myCanvas");
+                var div = document.createElement("div");
+                div.style.position = "absolute";
+                div.style.top = position.y;
+                div.style.left = position.x;
+                div.style.width = width;
+                div.style.height = height;
+                div.style.backgroundColor = "white";
+                canvas.appendChild(div);
+                return div;
+            }
+
+            function move(direction) {
+                currentNode = nodes[selectedNode];
+                childNode = currentNode.getChildNode(direction);
+                if(childNode != -1) {
+                    selectedNode = childNode.id;
+                    moveToNode(childNode);
+                } else if(currentNode.returnDirection != -1 && currentNode.returnDirection == direction) {
+                    selectedNode = currentNode.parentNode.id;
+                    moveToNode(currentNode.parentNode);
+                } else {
+                    var newNode = currentNode.addChildNode("Enter text", SHAPES.RECTANGLE, direction);
+                    selectedNode = newNode.id;
+                    moveToNode(newNode);
+                }
+            }
+
+            function reverseDirection(direction) {
+                if(direction % 2 == 1) direction--;
+                else direction++;
+                return direction;
+            }
+
+            function loaded() {
+                var startPosition = new Position(10000, 10000);
+                var startNode = new Node(startPosition, "Enter text", SHAPES.RECTANGLE, null);
+                moveToNode(startNode);
+                //var secondNode = startNode.addChildNode("Second node", SHAPES.RECTANGLE, DIRECTIONS.RIGHT);
+                //secondNode.addChildNode("Third node", SHAPES.RECTANGLE, DIRECTIONS.UP);
+                //startNode.addChildNode("Another node", SHAPES.RECTANGLE, DIRECTIONS.LEFT);
+            }
+        </script>
+    </head>
+
+    <body onload="loaded()">
+        <div id="myCanvas">
+
+        </div>
+    </body>
+</html>
