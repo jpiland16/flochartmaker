@@ -6,6 +6,7 @@ HTML5 rapid flowchart development tool
  - [Purpose](#purpose)
  - [How to use](#how-to-use)
  - [Technical notes](#technical-notes)
+ - [What you can expect](#what-you-can-expect-from-this-tool)
 
 ## Purpose
 The motivation behind this tool was the lack of sufficient options for creating flowcharts quickly and easily. Hopefully, the simple keyboard shortcuts used by this program will make flowchart creation a much less arduous task.
@@ -24,3 +25,19 @@ The motivation behind this tool was the lack of sufficient options for creating 
  
  ## Technical notes
   - The current implementation uses a __single-inheritance__ system to connect nodes. Multiple inputs to a node are allowed through the creation of invisible `pseudoNodes` which cannot be selected. This may be changed in the future to allow for easier removal of multiple inputs.
+
+## What you can expect from this tool
+
+### This tool will:
+ - Allow you to use keyboard shortcuts to quickly create flowcharts
+ - Make flowchart creation more fun (hopefully!)
+
+### This tool will not:
+ - Ask for a name and password
+ - Ask you to pay for something
+ - Allow you to "click and drag" to move shapes
+ - Have confusing menu items
+ - Have options to change fonts and colors (feel free to inspect element or download and change CSS!)
+ - Be easily used on a mobile device without a physical keyboard
+ - Save your flowcharts (it will warn you if you are about to close the tab)
+ - Convert your flowcharts to an image (in the future, this might be an option. For now, screenshots are a great option!)
