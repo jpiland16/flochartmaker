@@ -160,6 +160,7 @@
                     nodes.splice(nodeIndex, 1);
                     for (var i = nodeIndex; i < nodes.length; i++) {
                         nodes[i].id--;
+                        nodes[i].div.setAttribute("onclick","checkSelection(" + nodes[i].id + ");");
                     }
                     index--;
                     document.getElementById("myCanvas").removeChild(this.div);
@@ -190,7 +191,7 @@
                 div.style.border = BORDER_WIDTH  + "px solid white";
                 canvas.appendChild(div);
 
-                div.setAttribute("onfocus","checkSelection(" + node.id + ");");
+                div.setAttribute("onclick","checkSelection(" + node.id + ");");
 
                 return div;
             }
