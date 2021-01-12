@@ -1,4 +1,4 @@
-# flowchartmaker-dev
+# flochartmaker
 HTML5 rapid flowchart development tool
 
 ## Contents
