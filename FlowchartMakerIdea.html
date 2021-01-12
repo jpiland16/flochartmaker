@@ -29,19 +29,34 @@
             }
 
             .nodes:focus {
-                background-color: #303030;
                 outline: none;
+                line-height: 500%;
             }
+
+            .nodes:focus:not(:empty) {
+                line-height: normal;
+            }
+
+            .svgRect {
+                stroke:white;
+                stroke-width: 1;
+                stroke-opacity: 1;
+            }
+
         </style>
         <script>
 
             var nodes = [];
             var index = 0;
 
+            var svg;
+
+            var currentShape = 0;
+
             var selectedNode = 0;
 
             document.onkeydown = function(event) {
-                //console.log(event);
+                //console.log(event,document.activeElement);
                 if(event.key != "Control" && event.ctrlKey == true) {
                     switch(event.key) {
                         case "ArrowUp": 
@@ -66,20 +81,27 @@
                             break;    
                     }
                 }
-                if(event.key == "`") {
+                if(event.key == "Tab" ) {
                     event.preventDefault();
                     cycleShape(nodes[selectedNode]);
+                }
+                if(event.key == "Enter" && document.activeElement.tagName != "BODY") {
+                    event.preventDefault();
+                    document.activeElement.innerHTML += "<br/><br/>";
+                    document.execCommand('selectAll', false, null);
+                    document.getSelection().collapseToEnd();
                 }
                 //moveToNode(nodes[selectedNode]);
             }
 
             const NODE_WIDTH = 200; // px
-            const NODE_HEIGHT = 80; // px **Be sure to change border-radius of ellipse to 1/2 of NODE_HEIGHT!
+            const NODE_HEIGHT = 80; // px 
 
             const NODE_SEPARATION = 50; // px
 
-            const BORDER_WIDTH = 1; // px
+            const BORDER_WIDTH = 1; // px **Be sure to change SVG stroke width
             const CONNECTION_WIDTH = 1 // px
+
 
             const DIRECTIONS = Object.freeze({"UP": 0, "DOWN": 1, "LEFT": 2, "RIGHT": 3});
             const SHAPES = Object.freeze({"RECTANGLE": 0, "ELLIPSE": 1, "PARALLELOGRAM": 2, "DIAMOND": 3});
@@ -101,8 +123,12 @@
                     this.childNodes = [];
                     this.shape = shape;
                     this.parentNode = parentNode;
+                    this.top = this.position.y - (NODE_HEIGHT / 2);
+                    this.left = this.position.x - (NODE_WIDTH / 2);
                     this.id = index++;
-                    this.div = drawNode(this);
+                    var drawing = drawNode(this);
+                    this.div = drawing[0];
+                    this.svg = drawing[1];
                     nodes.push(this);
                     moveToNode(this);
 
@@ -164,6 +190,7 @@
                     }
                     index--;
                     document.getElementById("myCanvas").removeChild(this.div);
+                    document.getElementById("mySvg").removeChild(this.svg);
                     document.getElementById("myCanvas").removeChild(this.connector);
                     selectedNode = this.parentNode.id;
                     moveToNode(this.parentNode);
@@ -171,10 +198,16 @@
             }
 
             function cycleShape(node) {
-                node.div.classList.remove(shapeClasses[node.shape]);
                 node.shape++;
+                currentShape = node.shape;
                 if (node.shape == Object.getOwnPropertyNames(SHAPES).length) node.shape = 0;
-                node.div.classList.add(shapeClasses[node.shape]);
+                
+                if(node.shape == SHAPES.RECTANGLE) {
+                    svg.removeChild(node.svg);
+                    node.svg = svg.appendChild(getSvgRect(node.top,node.left));
+                } else if(node.shape == SHAPES.ELLIPSE) {
+                    node.svg.setAttribute("rx", NODE_HEIGHT / 2 + 1);
+                } 
             }
 
             function drawNode(node) {
@@ -186,14 +219,32 @@
                 div.innerText = node.text;
                 div.style.width = NODE_WIDTH;
                 div.style.height = NODE_HEIGHT;
-                div.style.top = node.position.y - (NODE_HEIGHT / 2) - (BORDER_WIDTH) + "px";
-                div.style.left = node.position.x - (NODE_WIDTH / 2) - (BORDER_WIDTH) + "px";
-                div.style.border = BORDER_WIDTH  + "px solid white";
+                var top = node.top;
+                div.style.top = top + BORDER_WIDTH + "px";
+                var left = node.left;
+                div.style.left = left + BORDER_WIDTH + "px";
+                //div.style.border = BORDER_WIDTH  + "px solid white";
                 canvas.appendChild(div);
 
                 div.setAttribute("onclick","checkSelection(" + node.id + ");");
 
-                return div;
+                svg = document.getElementById("mySvg");
+                var border = getSvgRect(top, left);
+                svg.appendChild(border);
+
+                canvas.appendChild(svg);
+
+                return [div, border];
+            }
+
+            function getSvgRect(top, left) {
+                var border = document.createElementNS(svg.namespaceURI, "rect");
+                border.setAttribute("x", left.toString());
+                border.setAttribute("y", top.toString());
+                border.setAttribute("width", NODE_WIDTH + 2 * BORDER_WIDTH);
+                border.setAttribute("height", NODE_HEIGHT + 2 * BORDER_WIDTH);
+                border.setAttribute("class", "svgRect");
+                return border;
             }
 
             function checkSelection(nodeIndex) {
@@ -226,8 +277,8 @@
                     width = CONNECTION_WIDTH;
                     height = NODE_SEPARATION;
 
-                    if(direction == DIRECTIONS.DOWN) position.y = parentNode.position.y + (NODE_HEIGHT / 2) + BORDER_WIDTH;
-                    else position.y = parentNode.position.y - ((NODE_HEIGHT / 2) + NODE_SEPARATION + BORDER_WIDTH);
+                    if(direction == DIRECTIONS.DOWN) position.y = parentNode.position.y + (NODE_HEIGHT / 2) + BORDER_WIDTH * 2;
+                    else position.y = parentNode.position.y - ((NODE_HEIGHT / 2) + NODE_SEPARATION);
 
                 } else { 
 
@@ -235,8 +286,8 @@
                     height = CONNECTION_WIDTH;
                     width = NODE_SEPARATION;
 
-                    if(direction == DIRECTIONS.RIGHT) position.x = parentNode.position.x + (NODE_WIDTH / 2) + BORDER_WIDTH;
-                    else position.x = parentNode.position.x - ((NODE_WIDTH / 2) + NODE_SEPARATION + BORDER_WIDTH);
+                    if(direction == DIRECTIONS.RIGHT) position.x = parentNode.position.x + (NODE_WIDTH / 2) + BORDER_WIDTH * 2;
+                    else position.x = parentNode.position.x - ((NODE_WIDTH / 2) + NODE_SEPARATION);
 
                 }
                 
@@ -282,6 +333,7 @@
                 //secondNode.addChildNode("Third node", SHAPES.RECTANGLE, DIRECTIONS.UP);
                 //startNode.addChildNode("Another node", SHAPES.RECTANGLE, DIRECTIONS.LEFT);
             }
+
         </script>
     </head>
 
@@ -289,5 +341,6 @@
         <div id="myCanvas">
 
         </div>
+        <svg id="mySvg" style="position:absolute; width: 100%; height: 100%; top: 0px; left: 0px; width: 20000px; height: 20000px; z-index: -1;"></svg>
     </body>
 </html>
