@@ -72,6 +72,7 @@
 
             var currentShape = 0;
             var currentColor = 0;
+            var usingArrow = true;
 
             var selectedNode = 0;
 
@@ -98,12 +99,16 @@
                         case "z":
                             event.preventDefault();
                             nodes[selectedNode].delete();
-                            break;    
+                            break;   
                     }
                 }
-                if(event.key == "Tab" ) {
+                if(event.key == "Tab") {
                     event.preventDefault();
-                    cycleShape(nodes[selectedNode]);
+                    if(event.shiftKey == false) {  
+                        cycleShape(nodes[selectedNode]);
+                    } else {
+                        cycleArrow(nodes[selectedNode]); 
+                    }
                 }
                 if(event.key == '`') {
                     event.preventDefault();
@@ -129,6 +134,7 @@
             const CONNECTION_WIDTH = 1 // px
 
             const PARALLELOGRAM_OFFSET = 15;
+            const ARROW_SIZE = 12;
 
             const DIRECTIONS = Object.freeze({"UP": 0, "DOWN": 1, "LEFT": 2, "RIGHT": 3});
             const SHAPES = Object.freeze({"RECTANGLE": 0, "ELLIPSE": 1, "PARALLELOGRAM": 2, "DIAMOND": 3, "CONNECTOR": 4});
@@ -225,7 +231,10 @@
                 }
 
                 delete() {
-                    if (this.parentNode == null || this.childNodes.length != 0) return;
+                    if (this.parentNode == null || this.childNodes.length != 0) 
+                        if(this.childNodes.length == 1 && this.childNodes[0].node.psuedo > 0) {
+                            this.childNodes[0].node.delete();
+                        } else return;
                     for (var i = 0; i < this.parentNode.childNodes.length; i++) {
                         if(this.parentNode.childNodes[i].node == this) {
                             this.parentNode.childNodes.splice(i, 1);
@@ -241,9 +250,58 @@
                     document.getElementById("myCanvas").removeChild(this.div);
                     document.getElementById("mySvg").removeChild(this.svg);
                     document.getElementById("myCanvas").removeChild(this.connector);
+                    if(this.arrow) document.getElementById("mySvg").removeChild(this.arrow);
                     if (this.parentNode.shape == SHAPES.CONNECTOR) this.parentNode.refreshConnectors();
                     selectedNode = this.parentNode.id;
                     moveToNode(this.parentNode);
+                }
+            }
+
+            function cycleArrow(node) {
+                if (node.parentNode) {
+                    if (node.arrow) {
+                        svg.removeChild(node.arrow);
+                        node.arrow = null;
+                        usingArrow = false;
+                    } else {
+                        usingArrow = true;
+                        var pointingDirection = reverseDirection(node.returnDirection);
+                        var heightConstant = 0.5;
+                        var punchConstant = 0.7;
+                        var arrow = document.createElementNS(svg.namespaceURI, "polygon");
+                        var ptop = (node.left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (node.top);
+                        var pleft = (node.left) + "," + (node.top + NODE_HEIGHT / 2 + BORDER_WIDTH);
+                        var pbottom = (node.left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (node.top + NODE_HEIGHT + BORDER_WIDTH * 2);
+                        var pright = (node.left + NODE_WIDTH + BORDER_WIDTH * 2) + "," + (node.top + NODE_HEIGHT / 2 + BORDER_WIDTH);
+                        switch (pointingDirection) {
+                            case DIRECTIONS.RIGHT:
+                                pright = pleft;
+                                ptop = (node.left - ARROW_SIZE) + ","  + ((node.top + NODE_HEIGHT / 2 + BORDER_WIDTH) - (heightConstant * ARROW_SIZE));
+                                pleft = (node.left - ARROW_SIZE * punchConstant) + "," + (node.top + NODE_HEIGHT / 2 + BORDER_WIDTH);
+                                pbottom = (node.left - ARROW_SIZE) + ","  + ((node.top + NODE_HEIGHT / 2 + BORDER_WIDTH) + (heightConstant * ARROW_SIZE));
+                                break;
+                            case DIRECTIONS.LEFT:
+                                pleft = pright;
+                                ptop = (node.left + NODE_WIDTH + BORDER_WIDTH * 2 + ARROW_SIZE) + ","  + ((node.top + NODE_HEIGHT / 2 + BORDER_WIDTH) - (heightConstant * ARROW_SIZE));
+                                pright = (node.left + NODE_WIDTH + BORDER_WIDTH * 2 + ARROW_SIZE * punchConstant) + "," + (node.top + NODE_HEIGHT / 2 + BORDER_WIDTH);
+                                pbottom = (node.left + NODE_WIDTH + BORDER_WIDTH * 2 + ARROW_SIZE) + ","  + ((node.top + NODE_HEIGHT / 2 + BORDER_WIDTH) + (heightConstant * ARROW_SIZE));
+                                break;
+                            case DIRECTIONS.DOWN:
+                                pbottom = ptop;
+                                pleft = (node.left + NODE_WIDTH / 2 + BORDER_WIDTH - heightConstant * ARROW_SIZE) + "," + (node.top - ARROW_SIZE);
+                                ptop = (node.left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (node.top - ARROW_SIZE * punchConstant);
+                                pright = (node.left + NODE_WIDTH / 2 + BORDER_WIDTH + heightConstant * ARROW_SIZE) + "," + (node.top - ARROW_SIZE);
+                                break;
+                            case DIRECTIONS.UP:
+                                ptop = pbottom;
+                                pleft = (node.left + NODE_WIDTH / 2 + BORDER_WIDTH - heightConstant * ARROW_SIZE) + "," + (node.top + NODE_HEIGHT + BORDER_WIDTH * 2 + ARROW_SIZE);
+                                ptop = (node.left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (node.top + NODE_HEIGHT + BORDER_WIDTH * 2 + ARROW_SIZE * punchConstant);
+                                pright = (node.left + NODE_WIDTH / 2 + BORDER_WIDTH + heightConstant * ARROW_SIZE) + "," + (node.top + NODE_HEIGHT + BORDER_WIDTH * 2 + ARROW_SIZE);
+                        }
+                        arrow.setAttribute("points" , pleft + " " + ptop + " " + pright + " " + pbottom);
+                        arrow.setAttribute("style", "fill:white");
+                        node.arrow = svg.appendChild(arrow);
+                    }
                 }
             }
 
@@ -346,6 +404,8 @@
                 }
 
                 border.style.fill = colorCodes[color];
+
+                if(usingArrow && !node.arrow) cycleArrow(node);
                 
                 if (shape == SHAPES.ELLIPSE) border.setAttribute("rx", NODE_HEIGHT / 2 + BORDER_WIDTH / 2);
                 return border;
@@ -465,7 +525,8 @@
             }
 
             function showHelp() {
-                alert("Thank you for using FlowchartMaker v0.3.\n\n - To start, select a shape and begin typing.\n\n - To create a new shape, use CTRL + arrow keys.\n\n - Cycle through shapes with the TAB key.\n\n - Cycle through colors with the backtick (`) key.")
+                //alert("Thank you for using FlowchartMaker v0.3.\n\n - To start, select a shape and begin typing.\n\n - To create a new shape, use CTRL + arrow keys.\n\n - Cycle through shapes with the TAB key.\n\n - Cycle through colors with the backtick (`) key.")
+                alert("How to build a great flowchart:\n\n  -  CTRL-ARROWS --> Move and make new shapes\n\n  -  CTRL-Z --> Delete shape\n\n  -  BACKTICK (`) --> Change color\n\n  -  TAB --> Change shape\n\n  -  SHIFT-TAB --> Add/remove arrow")
             }
 
         </script>
