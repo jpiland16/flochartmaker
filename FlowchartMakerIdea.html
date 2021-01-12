@@ -43,6 +43,12 @@
                 stroke-opacity: 1;
             }
 
+            .svgHighlight {
+                stroke: dodgerblue;
+                stroke-width: 1;
+                stroke-opacity: 1;
+            }
+
             #help {
                 position: fixed;
                 top: 5px;
@@ -112,6 +118,8 @@
                 //moveToNode(nodes[selectedNode]);
             }
 
+            const ENABLE_JUMPING = true;
+
             const NODE_WIDTH = 200; // px
             const NODE_HEIGHT = 80; // px 
 
@@ -123,7 +131,7 @@
             const PARALLELOGRAM_OFFSET = 15;
 
             const DIRECTIONS = Object.freeze({"UP": 0, "DOWN": 1, "LEFT": 2, "RIGHT": 3});
-            const SHAPES = Object.freeze({"RECTANGLE": 0, "ELLIPSE": 1, "PARALLELOGRAM": 2, "DIAMOND": 3});
+            const SHAPES = Object.freeze({"RECTANGLE": 0, "ELLIPSE": 1, "PARALLELOGRAM": 2, "DIAMOND": 3, "CONNECTOR": 4});
 
             const shapeClasses = ["rectangle","ellipse","parallelogram","diamond"];
 
@@ -145,6 +153,10 @@
                     this.shape = shape;
                     this.color = color;
                     this.parentNode = parentNode;
+
+                    if(parentNode) this.returnDirection = returnDirection;
+                    else this.returnDirection = -1;
+
                     this.top = this.position.y - (NODE_HEIGHT / 2);
                     this.left = this.position.x - (NODE_WIDTH / 2);
                     this.id = index++;
@@ -152,10 +164,14 @@
                     this.div = drawing[0];
                     this.svg = drawing[1];
                     nodes.push(this);
-                    moveToNode(this);
+                    //moveToNode(this);
 
-                    if(parentNode) this.returnDirection = returnDirection;
-                    else this.returnDirection = -1;
+                    
+                    if (this.shape == SHAPES.CONNECTOR) {
+                        this.div.style.visibility = "hidden";
+                    } else {
+                        this.div.style.visibility = "visible";
+                    }
                 }
 
                 addChildNode(text, shape, direction) {
@@ -187,9 +203,18 @@
 
                     newNode.connector = connectNodes(this);
 
+                    if(this.shape == SHAPES.CONNECTOR) {
+                        this.refreshConnectors();
+                    }
+
                     return newNode;
                 }
-            
+                
+                refreshConnectors() {
+                    svg.removeChild(this.svg);
+                    this.svg = svg.appendChild(getSvgShape(this));
+                }
+
                 getChildNode(direction) {
                     for(var i = 0; i < this.childNodes.length; i++) {
                         if (this.childNodes[i].direction == direction) return this.childNodes[i].node;
@@ -214,6 +239,7 @@
                     document.getElementById("myCanvas").removeChild(this.div);
                     document.getElementById("mySvg").removeChild(this.svg);
                     document.getElementById("myCanvas").removeChild(this.connector);
+                    if (this.parentNode.shape == SHAPES.CONNECTOR) this.parentNode.refreshConnectors();
                     selectedNode = this.parentNode.id;
                     moveToNode(this.parentNode);
                 }
@@ -231,8 +257,14 @@
                 if (node.shape == Object.getOwnPropertyNames(SHAPES).length) node.shape = 0;
                 currentShape = node.shape;
                 
+                if(node.shape == SHAPES.CONNECTOR) {
+                    node.div.style.visibility = "hidden";
+                } else {
+                    node.div.style.visibility = "visible";
+                }
+
                 svg.removeChild(node.svg);
-                node.svg = svg.appendChild(getSvgShape(node.top, node.left, node.shape, node.color));
+                node.svg = svg.appendChild(getSvgShape(node));
             }
 
             function drawNode(node) {
@@ -253,7 +285,7 @@
                 div.setAttribute("onclick","checkSelection(" + node.id + ");");
 
                 svg = document.getElementById("mySvg");
-                var border = getSvgShape(top, left, node.shape, node.color);
+                var border = getSvgShape(node);
                 svg.appendChild(border);
 
                 canvas.appendChild(svg);
@@ -261,8 +293,17 @@
                 return [div, border];
             }
 
-            function getSvgShape(top, left, shape, color) {
+            function getSvgShape(node) {
                 var border;
+
+                var top = node.top, left = node.left, shape = node.shape, color = node.color;
+
+                var ptop = (left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (top);
+                var pleft = (left) + "," + (top + NODE_HEIGHT / 2 + BORDER_WIDTH);
+                var pbottom = (left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (top + NODE_HEIGHT + BORDER_WIDTH * 2);
+                var pright = (left + NODE_WIDTH + BORDER_WIDTH * 2) + "," + (top + NODE_HEIGHT / 2 + BORDER_WIDTH);
+                var pcenter = (left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (top + NODE_HEIGHT / 2 + BORDER_WIDTH);
+
                 if(shape == SHAPES.RECTANGLE || shape == SHAPES.ELLIPSE) {
                     border = document.createElementNS(svg.namespaceURI, "rect");
                     border.setAttribute("x", left.toString());
@@ -278,16 +319,30 @@
                     var bottomRight =  (left - PARALLELOGRAM_OFFSET + NODE_WIDTH + BORDER_WIDTH * 2) + "," + (top + NODE_HEIGHT + BORDER_WIDTH * 2);
                     border.setAttribute("points", topLeft + " " + topRight + " " + bottomRight + " " + bottomLeft);
                     border.setAttribute("class", "svgRect");
-                } else {
+                } else if (shape == SHAPES.DIAMOND) {
                     border = document.createElementNS(svg.namespaceURI, "polygon");
-                    var ptop = (left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (top);
-                    var pleft = (left) + "," + (top + NODE_HEIGHT / 2 + BORDER_WIDTH);
-                    var pbottom = (left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (top + NODE_HEIGHT + BORDER_WIDTH * 2);
-                    var pright = (left + NODE_WIDTH + BORDER_WIDTH * 2) + "," + (top + NODE_HEIGHT / 2 + BORDER_WIDTH);
                     border.setAttribute("points", ptop + " " + pleft + "," + pbottom + " " + pright);
                     border.setAttribute("class", "svgRect");
+                } else {
+                    border = document.createElementNS(svg.namespaceURI, "polygon");
+                    var ppoints = [ptop, pbottom, pleft, pright];
+                    points = pcenter + " ";
+                    var pcount = 0;
+                    for (var i = 0; i < ppoints.length; i++) {
+                        //console.log(node.getChildNode(i));
+                        if(node.getChildNode(i) != -1 || node.returnDirection == i) {
+                            points += ppoints[i] + " " + pcenter + " ";
+                            pcount++;
+                        }
+                    }
+                    //console.log("Node has " + pcount + " connection(s)")
+                    border.setAttribute("points", points);
+                    border.setAttribute("class", "svgHighlight");
+                    //console.log('highlight')
                 }
+
                 border.style.fill = colorCodes[color];
+                
                 if (shape == SHAPES.ELLIPSE) border.setAttribute("rx", NODE_HEIGHT / 2 + BORDER_WIDTH / 2);
                 return border;
             }
@@ -300,11 +355,22 @@
             }
 
             function moveToNode(node) {
+                //console.log("Clear all highlights");
+                for (var i = 0; i < nodes.length; i++) {
+                    if(nodes[i].shape == SHAPES.CONNECTOR) nodes[i].svg.setAttribute("class","svgRect");
+                }
+
                 var nodeCenter = node.position;
                 var top = nodeCenter.y - window.innerHeight / 2;
                 var left = nodeCenter.x - window.innerWidth / 2;
                 node.div.focus();
-                document.execCommand('selectAll', false, null);
+                if(node.shape != SHAPES.CONNECTOR) { 
+                    document.execCommand('selectAll', false, null);
+                } else {
+                    node.svg.setAttribute("class","svgHighlight");
+                    if(window.getSelection()) window.getSelection().empty();
+                    document.activeElement.blur();
+                }
                 window.scrollTo({ top: top, left: left, behavior: 'smooth' });
             }
 
@@ -364,6 +430,10 @@
                         if(nodes[i].top == newNode.top && nodes[i].left == newNode.left) {
                             newNode.delete();
                             newNodeExists = false;
+                            if(ENABLE_JUMPING) {
+                                selectedNode = i;
+                                moveToNode(nodes[i]);
+                            }
                             break;
                         }
                     } 
@@ -390,7 +460,7 @@
             }
 
             function showHelp() {
-                alert("Thank you for using FlowchartMaker v0.3.\n\n - To start, select a shape and begin typing.\n\n - To create a new shape, use CTRL + arrow keys.\n\nAdditional tips:\n\n - Cycle through shapes with the TAB key.\n - Cycle through colors with the backtick (`) key.\n - Create connectors using SHIFT + backtick.")
+                alert("Thank you for using FlowchartMaker v0.3.\n\n - To start, select a shape and begin typing.\n\n - To create a new shape, use CTRL + arrow keys.\n\n - Cycle through shapes with the TAB key.\n\n - Cycle through colors with the backtick (`) key.")
             }
 
         </script>
