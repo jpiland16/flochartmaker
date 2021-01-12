@@ -52,6 +52,7 @@
             var svg;
 
             var currentShape = 0;
+            var currentColor = 0;
 
             var selectedNode = 0;
 
@@ -85,6 +86,10 @@
                     event.preventDefault();
                     cycleShape(nodes[selectedNode]);
                 }
+                if(event.key == '`') {
+                    event.preventDefault();
+                    cycleColors(nodes[selectedNode]);
+                }
                 if(event.key == "Enter" && document.activeElement.tagName != "BODY") {
                     event.preventDefault();
                     document.activeElement.innerHTML += "<br/><br/>";
@@ -102,11 +107,14 @@
             const BORDER_WIDTH = 1; // px **Be sure to change SVG stroke width
             const CONNECTION_WIDTH = 1 // px
 
+            const PARALLELOGRAM_OFFSET = 15;
 
             const DIRECTIONS = Object.freeze({"UP": 0, "DOWN": 1, "LEFT": 2, "RIGHT": 3});
             const SHAPES = Object.freeze({"RECTANGLE": 0, "ELLIPSE": 1, "PARALLELOGRAM": 2, "DIAMOND": 3});
 
             const shapeClasses = ["rectangle","ellipse","parallelogram","diamond"];
+
+            const colorCodes = ['#000000', '#333333', '#506770', '#6d7778','#505070', '#7a7d5a','#8c7961','#786d6d','#002402'] 
             
             class Position {
                 constructor(x, y) {
@@ -117,11 +125,12 @@
 
             class Node {
 
-                constructor(position, text, shape, parentNode, returnDirection) {
+                constructor(position, text, shape, color, parentNode, returnDirection) {
                     this.position = position;
                     this.text = text;
                     this.childNodes = [];
                     this.shape = shape;
+                    this.color = color;
                     this.parentNode = parentNode;
                     this.top = this.position.y - (NODE_HEIGHT / 2);
                     this.left = this.position.x - (NODE_WIDTH / 2);
@@ -156,7 +165,7 @@
 
                     }
 
-                    var newNode = new Node(position, text, shape, this, reverseDirection(direction))
+                    var newNode = new Node(position, text, shape, currentColor, this, reverseDirection(direction))
 
                     this.childNodes.push({
                         node: newNode, 
@@ -197,17 +206,20 @@
                 }
             }
 
+            function cycleColors(node) {
+                node.color++;
+                currentColor = node.color;
+                if (node.color >= colorCodes.length) node.color = 0;
+                node.svg.style.fill = colorCodes[node.color];
+            }
+
             function cycleShape(node) {
                 node.shape++;
-                currentShape = node.shape;
                 if (node.shape == Object.getOwnPropertyNames(SHAPES).length) node.shape = 0;
+                currentShape = node.shape;
                 
-                if(node.shape == SHAPES.RECTANGLE) {
-                    svg.removeChild(node.svg);
-                    node.svg = svg.appendChild(getSvgRect(node.top,node.left));
-                } else if(node.shape == SHAPES.ELLIPSE) {
-                    node.svg.setAttribute("rx", NODE_HEIGHT / 2 + 1);
-                } 
+                svg.removeChild(node.svg);
+                node.svg = svg.appendChild(getSvgShape(node.top, node.left, node.shape, node.color));
             }
 
             function drawNode(node) {
@@ -215,7 +227,6 @@
                 var div = document.createElement("div");
                 div.contentEditable = true;
                 div.classList.add("nodes");
-                div.classList.add(shapeClasses[node.shape]);
                 div.innerText = node.text;
                 div.style.width = NODE_WIDTH;
                 div.style.height = NODE_HEIGHT;
@@ -229,7 +240,7 @@
                 div.setAttribute("onclick","checkSelection(" + node.id + ");");
 
                 svg = document.getElementById("mySvg");
-                var border = getSvgRect(top, left);
+                var border = getSvgShape(top, left, node.shape, node.color);
                 svg.appendChild(border);
 
                 canvas.appendChild(svg);
@@ -237,13 +248,34 @@
                 return [div, border];
             }
 
-            function getSvgRect(top, left) {
-                var border = document.createElementNS(svg.namespaceURI, "rect");
-                border.setAttribute("x", left.toString());
-                border.setAttribute("y", top.toString());
-                border.setAttribute("width", NODE_WIDTH + 2 * BORDER_WIDTH);
-                border.setAttribute("height", NODE_HEIGHT + 2 * BORDER_WIDTH);
-                border.setAttribute("class", "svgRect");
+            function getSvgShape(top, left, shape, color) {
+                var border;
+                if(shape == SHAPES.RECTANGLE || shape == SHAPES.ELLIPSE) {
+                    border = document.createElementNS(svg.namespaceURI, "rect");
+                    border.setAttribute("x", left.toString());
+                    border.setAttribute("y", top.toString());
+                    border.setAttribute("width", NODE_WIDTH + 2 * BORDER_WIDTH);
+                    border.setAttribute("height", NODE_HEIGHT + 2 * BORDER_WIDTH);
+                    border.setAttribute("class", "svgRect");
+                } else if (shape == SHAPES.PARALLELOGRAM) {
+                    border = document.createElementNS(svg.namespaceURI, "polygon");
+                    var topLeft = (left + PARALLELOGRAM_OFFSET) + "," + (top);
+                    var topRight =  (left + PARALLELOGRAM_OFFSET + NODE_WIDTH + BORDER_WIDTH * 2) + "," + (top);
+                    var bottomLeft = (left - PARALLELOGRAM_OFFSET) + "," + (top + NODE_HEIGHT + BORDER_WIDTH * 2);
+                    var bottomRight =  (left - PARALLELOGRAM_OFFSET + NODE_WIDTH + BORDER_WIDTH * 2) + "," + (top + NODE_HEIGHT + BORDER_WIDTH * 2);
+                    border.setAttribute("points", topLeft + " " + topRight + " " + bottomRight + " " + bottomLeft);
+                    border.setAttribute("class", "svgRect");
+                } else {
+                    border = document.createElementNS(svg.namespaceURI, "polygon");
+                    var ptop = (left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (top);
+                    var pleft = (left) + "," + (top + NODE_HEIGHT / 2 + BORDER_WIDTH);
+                    var pbottom = (left + NODE_WIDTH / 2 + BORDER_WIDTH) + "," + (top + NODE_HEIGHT + BORDER_WIDTH * 2);
+                    var pright = (left + NODE_WIDTH + BORDER_WIDTH * 2) + "," + (top + NODE_HEIGHT / 2 + BORDER_WIDTH);
+                    border.setAttribute("points", ptop + " " + pleft + "," + pbottom + " " + pright);
+                    border.setAttribute("class", "svgRect");
+                }
+                border.style.fill = colorCodes[color];
+                if (shape == SHAPES.ELLIPSE) border.setAttribute("rx", NODE_HEIGHT / 2 + BORDER_WIDTH / 2);
                 return border;
             }
 
@@ -273,7 +305,7 @@
                 
                 if(direction == DIRECTIONS.UP || direction == DIRECTIONS.DOWN) {
 
-                    position.x = parentNode.position.x - (CONNECTION_WIDTH / 2);
+                    position.x = parentNode.position.x - (CONNECTION_WIDTH / 2) + BORDER_WIDTH;
                     width = CONNECTION_WIDTH;
                     height = NODE_SEPARATION;
 
@@ -282,7 +314,7 @@
 
                 } else { 
 
-                    position.y = parentNode.position.y - (CONNECTION_WIDTH / 2);  
+                    position.y = parentNode.position.y - (CONNECTION_WIDTH / 2) + BORDER_WIDTH;  
                     height = CONNECTION_WIDTH;
                     width = NODE_SEPARATION;
 
@@ -313,7 +345,7 @@
                     selectedNode = currentNode.parentNode.id;
                     moveToNode(currentNode.parentNode);
                 } else {
-                    var newNode = currentNode.addChildNode("Enter text", SHAPES.RECTANGLE, direction);
+                    var newNode = currentNode.addChildNode("Enter text", currentShape, direction);
                     selectedNode = newNode.id;
                     moveToNode(newNode);
                 }
@@ -327,7 +359,7 @@
 
             function loaded() {
                 var startPosition = new Position(10000, 10000);
-                var startNode = new Node(startPosition, "Enter text", SHAPES.RECTANGLE, null);
+                var startNode = new Node(startPosition, "Enter text", SHAPES.RECTANGLE, currentColor, null);
                 moveToNode(startNode);
                 //var secondNode = startNode.addChildNode("Second node", SHAPES.RECTANGLE, DIRECTIONS.RIGHT);
                 //secondNode.addChildNode("Third node", SHAPES.RECTANGLE, DIRECTIONS.UP);
