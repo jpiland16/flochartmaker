@@ -355,7 +355,7 @@
                 div.setAttribute("onclick","checkSelection(" + node.id + ");");
                 div.oninput = function (event) {
                     node.text = event.target.innerHTML;
-                    console.log(node.id);
+                    //console.log(node.id);
                 };
 
                 svg = document.getElementById("mySvg");
@@ -567,10 +567,14 @@
                 return false;
             }
 
+            function beforeUnload() {
+                return ("You are about to leave!");
+            }
+
         </script>
     </head>
 
-    <body onload="loaded()">
+    <body onload="loaded()" onbeforeunload="return beforeUnload()">
         <div id="myCanvas">
 
         </div>
