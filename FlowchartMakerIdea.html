@@ -43,6 +43,19 @@
                 stroke-opacity: 1;
             }
 
+            #help {
+                position: fixed;
+                top: 5px;
+                right: 5px;
+                opacity: 0.4;
+                font-size: 25px;
+                cursor: pointer;
+            }
+
+            #help:hover {
+                opacity: 1;
+            }
+
         </style>
         <script>
 
@@ -58,7 +71,7 @@
 
             document.onkeydown = function(event) {
                 //console.log(event,document.activeElement);
-                if(event.key != "Control" && event.ctrlKey == true) {
+                if(event.key != "Control" && event.ctrlKey == true && event.shiftKey == false) {
                     switch(event.key) {
                         case "ArrowUp": 
                             event.preventDefault();
@@ -346,8 +359,18 @@
                     moveToNode(currentNode.parentNode);
                 } else {
                     var newNode = currentNode.addChildNode("Enter text", currentShape, direction);
-                    selectedNode = newNode.id;
-                    moveToNode(newNode);
+                    var newNodeExists = true;
+                    for(var i = 0; i < nodes.length - 1; i++) {
+                        if(nodes[i].top == newNode.top && nodes[i].left == newNode.left) {
+                            newNode.delete();
+                            newNodeExists = false;
+                            break;
+                        }
+                    } 
+                    if(newNodeExists) {
+                        selectedNode = newNode.id;
+                        moveToNode(newNode);
+                    }
                 }
             }
 
@@ -366,6 +389,10 @@
                 //startNode.addChildNode("Another node", SHAPES.RECTANGLE, DIRECTIONS.LEFT);
             }
 
+            function showHelp() {
+                alert("Thank you for using FlowchartMaker v0.3.\n\n - To start, select a shape and begin typing.\n\n - To create a new shape, use CTRL + arrow keys.\n\nAdditional tips:\n\n - Cycle through shapes with the TAB key.\n - Cycle through colors with the backtick (`) key.\n - Create connectors using SHIFT + backtick.")
+            }
+
         </script>
     </head>
 
@@ -374,5 +401,6 @@
 
         </div>
         <svg id="mySvg" style="position:absolute; width: 100%; height: 100%; top: 0px; left: 0px; width: 20000px; height: 20000px; z-index: -1;"></svg>
+        <div id="help" onclick="showHelp()">HELP</div>
     </body>
 </html>
