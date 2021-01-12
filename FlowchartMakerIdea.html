@@ -82,19 +82,19 @@
                     switch(event.key) {
                         case "ArrowUp": 
                             event.preventDefault();
-                            move(DIRECTIONS.UP);
+                            move(DIRECTIONS.UP, event.altKey);
                             break;
                         case "ArrowDown": 
                             event.preventDefault();
-                            move(DIRECTIONS.DOWN);
+                            move(DIRECTIONS.DOWN, event.altKey);
                             break;
                         case "ArrowRight": 
                             event.preventDefault();
-                            move(DIRECTIONS.RIGHT);
+                            move(DIRECTIONS.RIGHT, event.altKey);
                             break;
                         case "ArrowLeft": 
                             event.preventDefault();
-                            move(DIRECTIONS.LEFT);
+                            move(DIRECTIONS.LEFT, event.altKey);
                             break;
                         case "z":
                             event.preventDefault();
@@ -124,6 +124,8 @@
             }
 
             const ENABLE_JUMPING = true;
+            const ENABLE_LINKBACKS = true;
+            const FORCE_LINKBACK_ARROW = true;
 
             const NODE_WIDTH = 200; // px
             const NODE_HEIGHT = 80; // px 
@@ -154,7 +156,7 @@
 
             class Node {
 
-                constructor(position, text, shape, color, parentNode, returnDirection) {
+                constructor(position, text, shape, color, parentNode, returnDirection, pseudoParentId) {
                     this.position = position;
                     this.text = text;
                     this.childNodes = [];
@@ -168,21 +170,24 @@
                     this.top = this.position.y - (NODE_HEIGHT / 2);
                     this.left = this.position.x - (NODE_WIDTH / 2);
                     this.id = index++;
-                    var drawing = drawNode(this);
-                    this.div = drawing[0];
-                    this.svg = drawing[1];
+                    if (pseudoParentId == undefined) {
+                        var drawing = drawNode(this);
+                        this.div = drawing[0];
+                        this.svg = drawing[1];
+                        this.pseudo = -1;
+                    } else this.pseudo = pseudoParentId;
                     nodes.push(this);
                     //moveToNode(this);
 
                     
                     if (this.shape == SHAPES.CONNECTOR) {
                         this.div.style.visibility = "hidden";
-                    } else {
+                    } else if (this.pseudo == -1) {
                         this.div.style.visibility = "visible";
                     }
                 }
 
-                addChildNode(text, shape, direction) {
+                addChildNode(text, shape, direction, pseudoParentId) {
 
                     var position = new Position();
 
@@ -202,7 +207,10 @@
 
                     }
 
-                    var newNode = new Node(position, text, shape, currentColor, this, reverseDirection(direction))
+                    var newNode;
+
+                    if (pseudoParentId != undefined) newNode = new Node(position, text, shape, currentColor, this, reverseDirection(direction), pseudoParentId);
+                    else newNode = new Node(position, text, shape, currentColor, this, reverseDirection(direction));
 
                     this.childNodes.push({
                         node: newNode, 
@@ -232,7 +240,7 @@
 
                 delete() {
                     if (this.parentNode == null || this.childNodes.length != 0) 
-                        if(this.childNodes.length == 1 && this.childNodes[0].node.psuedo > 0) {
+                        if(this.childNodes.length == 1 && this.childNodes[0].node.pseudo > -1) {
                             this.childNodes[0].node.delete();
                         } else return;
                     for (var i = 0; i < this.parentNode.childNodes.length; i++) {
@@ -244,13 +252,13 @@
                     nodes.splice(nodeIndex, 1);
                     for (var i = nodeIndex; i < nodes.length; i++) {
                         nodes[i].id--;
-                        nodes[i].div.setAttribute("onclick","checkSelection(" + nodes[i].id + ");");
+                        if(nodes[i].div) nodes[i].div.setAttribute("onclick","checkSelection(" + nodes[i].id + ");");
                     }
                     index--;
-                    document.getElementById("myCanvas").removeChild(this.div);
-                    document.getElementById("mySvg").removeChild(this.svg);
-                    document.getElementById("myCanvas").removeChild(this.connector);
-                    if(this.arrow) document.getElementById("mySvg").removeChild(this.arrow);
+                    if (this.div) document.getElementById("myCanvas").removeChild(this.div);
+                    if (this.svg) document.getElementById("mySvg").removeChild(this.svg);
+                    if (this.connector) document.getElementById("myCanvas").removeChild(this.connector);
+                    if (this.arrow) document.getElementById("mySvg").removeChild(this.arrow);
                     if (this.parentNode.shape == SHAPES.CONNECTOR) this.parentNode.refreshConnectors();
                     selectedNode = this.parentNode.id;
                     moveToNode(this.parentNode);
@@ -345,6 +353,10 @@
                 canvas.appendChild(div);
 
                 div.setAttribute("onclick","checkSelection(" + node.id + ");");
+                div.oninput = function (event) {
+                    node.text = event.target.innerHTML;
+                    console.log(node.id);
+                };
 
                 svg = document.getElementById("mySvg");
                 var border = getSvgShape(node);
@@ -478,12 +490,19 @@
                 return div;
             }
 
-            function move(direction) {
+            function move(direction, altKey) {
                 currentNode = nodes[selectedNode];
                 childNode = currentNode.getChildNode(direction);
                 if(childNode != -1) {
-                    selectedNode = childNode.id;
-                    moveToNode(childNode);
+                    //console.log(childNode.pseudo)
+                    if (childNode.pseudo > -1) {
+                        // move to the real node above the pseudoNode
+                        selectedNode = childNode.pseudo;
+                        moveToNode(nodes[selectedNode]);
+                    } else {
+                        selectedNode = childNode.id;
+                        moveToNode(childNode);
+                    }
                 } else if(currentNode.returnDirection != -1 && currentNode.returnDirection == direction) {
                     selectedNode = currentNode.parentNode.id;
                     moveToNode(currentNode.parentNode);
@@ -491,13 +510,27 @@
                     var newNode = currentNode.addChildNode("Enter text", currentShape, direction);
                     var newNodeExists = true;
                     for(var i = 0; i < nodes.length - 1; i++) {
-                        if(nodes[i].top == newNode.top && nodes[i].left == newNode.left) {
+                        if(nodes[i].top == newNode.top && nodes[i].left == newNode.left && nodes[i].pseudo == -1) {
                             newNode.delete();
                             newNodeExists = false;
-                            if(ENABLE_JUMPING) {
+                            var jump = false;
+                            var link1 = childNode == -1 || childNode.pseudo == -1 // If true, no link exists
+                            var potentialChild = nodes[i].getChildNode(reverseDirection(direction));
+                            var link2 = potentialChild == -1 || potentialChild.pseudo == -1; // If true, no link exists
+                            //console.log(link1, link2)
+                            if (ENABLE_LINKBACKS) {
+                                if(link1 && link2 && altKey) {
+                                    var pseudoNode = currentNode.addChildNode("", SHAPES.RECTANGLE, direction, nodes[i].id);
+                                    if (FORCE_LINKBACK_ARROW) cycleArrow(pseudoNode);
+                                    jump = true;
+                                } else if (!link1 || !link2) {
+                                    jump = true;
+                                }
+                            }
+                            if (ENABLE_JUMPING || jump) {
                                 selectedNode = i;
                                 moveToNode(nodes[i]);
-                            }
+                            } 
                             break;
                         }
                     } 
@@ -526,7 +559,12 @@
 
             function showHelp() {
                 //alert("Thank you for using FlowchartMaker v0.3.\n\n - To start, select a shape and begin typing.\n\n - To create a new shape, use CTRL + arrow keys.\n\n - Cycle through shapes with the TAB key.\n\n - Cycle through colors with the backtick (`) key.")
-                alert("How to build a great flowchart:\n\n  -  CTRL-ARROWS --> Move and make new shapes\n\n  -  CTRL-Z --> Delete shape\n\n  -  BACKTICK (`) --> Change color\n\n  -  TAB --> Change shape\n\n  -  SHIFT-TAB --> Add/remove arrow")
+                alert("How to build a great flowchart:\n\n  -  CTRL-ARROWS --> Move and make new shapes\n  -  CTRL-Z --> Delete shape\n  -  BACKTICK (`) --> Change color\n  -  TAB --> Change shape\n  -  SHIFT-TAB --> Add/remove arrow\n  -  CTRL-ALT-ARROW --> Create linkback\n\nFlowchartMaker v0.9\nFor more information, right-click the HELP button.")
+            }
+
+            function launchAbout() {
+                window.open("https://github.com/jpiland16/flowchartmaker-dev/blob/master/README.md");
+                return false;
             }
 
         </script>
@@ -537,6 +575,6 @@
 
         </div>
         <svg id="mySvg" style="position:absolute; width: 100%; height: 100%; top: 0px; left: 0px; width: 20000px; height: 20000px; z-index: -1;"></svg>
-        <div id="help" onclick="showHelp()">HELP</div>
+        <div id="help" onclick="showHelp()" oncontextmenu="launchAbout()">HELP</div>
     </body>
 </html>
