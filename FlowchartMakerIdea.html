@@ -135,6 +135,8 @@
 
             const shapeClasses = ["rectangle","ellipse","parallelogram","diamond"];
 
+            const motivations = ["A great idea starts right here","Clarity is key to communication", "Organize your ideas", "Every accomplishment starts as a thought"];
+
             const colorCodes = ['#000000', '#333333', '#506770', '#6d7778','#505070', '#7a7d5a','#8c7961','#786d6d','#002402'] 
             
             class Position {
@@ -261,6 +263,8 @@
                     node.div.style.visibility = "hidden";
                 } else {
                     node.div.style.visibility = "visible";
+                    node.div.focus();
+                    document.execCommand('selectAll', false, null);
                 }
 
                 svg.removeChild(node.svg);
@@ -452,7 +456,8 @@
 
             function loaded() {
                 var startPosition = new Position(10000, 10000);
-                var startNode = new Node(startPosition, "Enter text", SHAPES.RECTANGLE, currentColor, null);
+                var prompt = motivations[Math.floor(Math.random() * motivations.length)];
+                var startNode = new Node(startPosition, prompt, SHAPES.RECTANGLE, currentColor, null);
                 moveToNode(startNode);
                 //var secondNode = startNode.addChildNode("Second node", SHAPES.RECTANGLE, DIRECTIONS.RIGHT);
                 //secondNode.addChildNode("Third node", SHAPES.RECTANGLE, DIRECTIONS.UP);
