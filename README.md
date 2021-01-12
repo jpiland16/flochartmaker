@@ -15,6 +15,7 @@ The motivation behind this tool was the lack of sufficient options for creating 
  - When the page is opened, the starting node is selected. You can begin typing the title of the first node.
  - To create a new node, press an arrow key while holding the CTRL key. The text in the new node will be automatically selected.
  - The CTRL key can also be used for moving from node to node. Moving from one node to an existing node will not create a new connection, even if the two nodes were previously unconnected.
+ - To delete a node, press CTRL-Z. Currently, only nodes that are at the ends of a chain can be deleted. The starting node cannot be deleted.
  - To create an additional input to a node, press an arrow key while holding the CTRL and ALT keys. If there is not another node in that direction, then the action would be as if the ALT key was not pressed.
  - To change the shape of a node, press the TAB key while that node is selected. There are currently 5 shapes: rectangle, ellipse, parallelogram, diamond, and "connector." 
  - The connector node cannot display text (although it will save text you previously entered) and can only be used to illustrate connections between other nodes.
