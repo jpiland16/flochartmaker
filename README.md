@@ -1,5 +1,5 @@
 # flochartmaker
-HTML5 rapid flowchart development tool
+HTML5 rapid flowchart development tool - <a href="https://jpiland16.github.io/flochartmaker/">launch now</a>
 
 ## Contents
 
@@ -22,6 +22,7 @@ The motivation behind this tool was the lack of sufficient options for creating 
  - The connector node cannot display text (although it will save text you previously entered) and can only be used to illustrate connections between other nodes.
  - To change the fill color of a node, use the backtick (\`) key which is located in the top-left corner of the keyboard. Connector nodes do not display a fill color.
  - To add or remove the arrow pointing from one node __to__ the current node, press the SHIFT and TAB keys simultaneously while that node is selected. Currently, removal arrows created by the CTRL-ALT-ARROW method is not supported - the entire connection must be removed.
+ - At the start of each connection there are two text boxes that can be used to label the lines or arrows. They cannot be seen if they contain no text, but will appear on selection. (Hover the mouse near the edges of nodes to see the text-editing cursor appear.)
  
  ## Technical notes
   - The current implementation uses a __single-inheritance__ system to connect nodes. Multiple inputs to a node are allowed through the creation of invisible `pseudoNodes` which cannot be selected. This may be changed in the future to allow for easier removal of multiple inputs.
@@ -40,4 +41,4 @@ The motivation behind this tool was the lack of sufficient options for creating 
  - Have options to change fonts and colors (feel free to inspect element or download and change CSS!)
  - Be easily used on a mobile device without a physical keyboard
  - Save your flowcharts (it will warn you if you are about to close the tab)
- - Convert your flowcharts to an image (in the future, this might be an option. For now, screenshots are a great option!)
+ - Convert your flowcharts to an image (in the future, this might be an possibility. For now, screenshots are a great option!)
