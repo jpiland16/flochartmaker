@@ -1,5 +1,5 @@
 # flochartmaker
-HTML5 rapid flowchart development tool - <a href="https://jpiland16.github.io/flochartmaker/">launch now</a>
+HTML5 rapid flowchart development tool - <a href="https://jpiland16.github.io/flochartmaker/" target="_blank">launch now</a>
 
 ## Contents
 
